@@ -453,13 +453,20 @@ int main(){
 	fscanf(input, "%d", &n);
 	Node* points = (Node*) malloc(n*sizeof(Node));
 	int i = 0;
-
-	while (EOF != fscanf(input, "%d %d", &points[i].x, &points[i].y))
+    int type = 0;
+	while (EOF != fscanf(input, "%d %d %d", &points[i].x, &points[i].y, &type))
     {
     	points[i].next = NULL;
 		points[i].prev = NULL;
 		points[i].id = i;
         i++;
+        if (type == 1) { //Start
+
+        } else if (type == 2) { //Objective
+
+        } else if (type == 3 || type == 4) { //Obstacle or Wall
+
+        }
     }
 
     //free(points);
