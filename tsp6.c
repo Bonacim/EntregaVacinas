@@ -259,16 +259,26 @@ Graph* createGrid(Node* vertex, int size, int width){
 			}
 		}
 
-		// if(i+1<(j+1)*width && (j+1)*width<size-1){
-		// 	if(vertex[i+1].acessible==1){
-		// 		currentNode = createNode(vertex[i+1].x,vertex[i+1].y,vertex[i+1].id);
-		// 		queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
-		// 	}
-		// }
+		if((i+1)%width > 0){
+			if(vertex[i+1].accessible==1){
+				Node* currentNode = createNode(vertex[i+1].x,vertex[i+1].y,vertex[i+1].id);
+				currentNode->accessible = 1;
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
 
 		if(i+width <= size-1){
 			if(vertex[i+width].accessible==1){
 				Node*  currentNode = createNode(vertex[i+width].x,vertex[i+width].y,vertex[i+width].id);
+				currentNode->accessible = 1;
+				printf("currentNode x:%d y:%d\n",currentNode->x,currentNode->y);
+				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+			}
+		}
+
+		if(i-width >= 0){
+			if(vertex[i-width].accessible==1){
+				Node*  currentNode = createNode(vertex[i-width].x,vertex[i-width].y,vertex[i-width].id);
 				currentNode->accessible = 1;
 				printf("currentNode x:%d y:%d\n",currentNode->x,currentNode->y);
 				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);

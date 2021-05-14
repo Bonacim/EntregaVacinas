@@ -53,3 +53,4 @@ dkms.conf
 tree.txt
 cycle.txt
 .vscode
+*.pdf
