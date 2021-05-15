@@ -27,6 +27,7 @@ typedef struct Node{
 	float weight;
 	int visited;
 	int accessible;
+	float gScore;
 }Node;
 
 //Estrutura Graph:
@@ -181,6 +182,13 @@ void minHeapInsert(Node* A,int heapsize,float key){
 	heapDecreaseKey(A,heapsize,key);
 }
 
+//função que insere um Node na heap de mínimo
+void minHeapInsertNode(Node* A,int heapsize,Node new){
+	A = (Node*)realloc(A,(heapsize+1)*sizeof(Node));
+	A[heapsize] = new;
+	A[heapsize].weight = FLT_MAX;
+	heapDecreaseKey(A,heapsize,new.weight);
+}
 
 
 //função que inicializa o grafo por matriz de ajacências
@@ -611,8 +619,100 @@ Graph prim(Graph graph, Node* points, int size){
 	return tree;
 }
 
+float h(Graph* graph, Node* points, Node current, Node end, int parte)
+{
+	if (parte == 1)
+	{
+		//heuristica da parte 1
+	}
+	else if (parte == 2) {
+		//distância euclidiana
+		return sqrtf((current.x - end.x)*(current.x - end.x) + (current.y - end.y)*(current.y - end.y));
+	}
+	return -1;
+}
 
+float d(Node current, Node neighbor, int parte)
+{
+	if (parte == 1)
+	{
+		//retorna distância da parte 1
+	}
+	else if (parte == 2)
+	{
+		//retorna distância de manhatan
+		return sqrtf((current.x - neighbor.x)*(current.x - neighbor.x)) + sqrtf((current.y - neighbor.y)*(current.y - neighbor.y));
+	}
+	return -1;
+}
 
+Node** reconstruct_path(Node* points, Node current, int size) {
+	Node* path = (Node*)malloc(size*sizeof(Node));
+	int actual_size = 0;
+	path[actual_size++] = current;
+	Node next = current;
+	while (next.parentId != NULL)
+	{
+		next = points[next.parentId];
+		path[actual_size++] = next;
+	}
+	return path;
+}
+
+Node** aStar(Graph* graph, Node* points, Node start, Node end, int parte)
+{
+	int openSet_size = 1;
+	Node *openSet = (Node*)malloc(openSet_size*sizeof(Node));
+	
+
+	int i;
+	for (i = 0; i < graph->size; i++)
+	{
+		if (points[i].x == start.x && points[i].y == start.y) {
+			points[i].gScore =0;
+			points[i].weight = h(graph, points, points[i], end, parte);
+			openSet[0] = points[i];
+			break;
+		}
+	}
+	buildMinHeap(openSet,openSet_size);
+
+	while(openSet_size != 0)
+	{
+		Node current = heapExtractMin(openSet,openSet_size);
+		if (current.x == end.x && current.y == end.y)
+		{
+			free(openSet);			
+			return reconstruct_path(points,current,graph->size);
+		}
+
+		Node* neighbor = graph->adjList[current.id];
+		while (neighbor != NULL)
+		{
+			float tentative_score = current.gScore + d(current, *neighbor, parte);
+			if (tentative_score < neighbor->gScore) {
+				neighbor->parentId = current.id;
+				neighbor->gScore = tentative_score;
+				neighbor->weight = neighbor->gScore + h(graph,points,*neighbor,end,parte);
+				
+				int neighborInSet = 0;
+				for (i = 0; i < openSet_size; i++)
+				{
+					if (openSet[i].id == neighbor->id) {
+						neighborInSet = 1;
+						break;
+					}
+				}
+				if (!neighborInSet)
+				{
+					minHeapInsertNode(openSet,openSet_size,*neighbor);
+				}
+			}
+		}
+	}
+	free(openSet);
+	return NULL;
+}
 
 
 int main(){
@@ -632,12 +732,18 @@ int main(){
 	// 	points[i].id = i;
  //        i++;
  //    }
+	Node start_point, end_point;
+	fscanf(input, "%d %d", &start_point.x, &start_point.y);
+	fscanf(input, "%d %d", &end_point.x, &end_point.y);
 	printf("before input\n");
     while (EOF != fscanf(input, "%d %d %d", &points[i].x, &points[i].y, &points[i].accessible))
     {
     	points[i].next = NULL;
 		points[i].prev = NULL;
 		points[i].id = i;
+		points[i].gScore = INFINITY;
+		points[i].weight = INFINITY; //fscore
+		points[i].parentId = -1;
         i++;
     }
 
@@ -646,6 +752,7 @@ int main(){
 
     printf("after input\n");
     Graph* grid = createGrid(points,n,width);
+	Node** path = aStar(grid,points,start_point,end_point, 2);
 
     //free(points);
     //Graph graph = initializeGraphMatrix(points,n);
