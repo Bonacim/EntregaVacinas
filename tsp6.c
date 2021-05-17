@@ -7,7 +7,7 @@
 #include"queue.c"
 #include<string.h>
 
-#define MAX_GEN 50
+#define MAX_GEN 500
 
 //Estrutura Node:
 //armazena o nó de um grafo
@@ -30,6 +30,96 @@ typedef struct Node{
 	float gScore;
 }Node;
 
+typedef struct tuple{
+	float value;
+	int id;
+}tuple;
+
+
+void merge(tuple* arr, int p, int q, int r){
+	int m = q - p + 1;
+	int n = r - q;
+	//printf("allocating inside merge\n");
+	tuple* L = (tuple*)malloc((m+1)*sizeof(tuple));
+	tuple* R = (tuple*)malloc((n+1)*sizeof(tuple));
+	int i,j,k;
+
+	for(i=0;i<m;i++)
+	{
+		L[i] = arr[p+i];
+	}
+	//printf("L = ");
+	//printArray(L,m);
+	for(j=0;j<n;j++)
+	{
+		R[j] = arr[q+j+1];
+	}
+	//printf("R = ");
+	//printArray(R,n);
+	i = j = 0;
+
+	//printf("m:%d, n:%d, p:%d, q:%d, r:%d\n",m,n,p,q,r);
+	for(k=p;k<=r;k++)
+	{
+	//printf("i:%d, j:%d, k:%d\n",i,j,k);
+		if(i<m)
+		{
+				if(L[i].value <= R[j].value)
+				{
+					arr[k] = L[i];
+					//printf("Attributed arr[%d] <= L[%d]\n",k,i);
+					i++;
+					continue;
+				}
+				else if(j==n)
+				{
+					arr[k] = L[i];
+					//printf("Attributed arr[%d] <= L[%d]\n",k,i);
+					i++;
+					continue;
+				}
+		}
+
+		if(j<n)
+		{
+				if(R[j].value <= L[i].value)
+				{
+					arr[k] = R[j];
+					//printf("Attributed arr[%d] <= R[%d]\n",k,j);
+					j++;
+					continue;
+				}
+				else if(i==m)
+				{
+					arr[k] = R[j];
+					//printf("Attributed arr[%d] <= R[%d]\n",k,j);
+					j++;
+					continue;
+				}
+		}
+	}
+	free(L);
+	free(R);
+	
+}
+//recebe um vetor do tipo int e o ordena
+//"r" deve ser igual ao índice da última posição do vetor
+void mergeSort(tuple* arr, int p, int r){
+	//printf("insideMergesort\n");
+	if(p<r)
+	{
+		int q = floor((p+r)/2);
+		//printf("a");
+		mergeSort(arr,p,q);
+		//printf("b\n");
+		mergeSort(arr,q+1,r);
+		//printf("c\n");
+		merge(arr,p,q,r);
+		//printf("After merge: ");
+		//printArray(arr,10);
+	}
+}
+
 //Estrutura Graph:
 //grafo representado por matriz de adjacências
 typedef struct Graph{
@@ -49,6 +139,20 @@ Node* createNode(int x,int y,int id){
 	newNode->weight = -1;
 	newNode->parentId = -1;
 	newNode->accessible = -1;
+	return newNode;
+}
+
+Node* copyNode(Node n){
+	Node* newNode = (Node*) malloc(sizeof(Node));
+	newNode->x = n.x;
+	newNode->y = n.y;
+	newNode->next = n.next;
+	newNode->prev = n.prev;
+	newNode->id = n.id;
+	newNode->visited = n.visited;
+	newNode->weight = n.weight;
+	newNode->parentId = n.parentId;
+	newNode->accessible = n.accessible;
 	return newNode;
 }
 
@@ -92,12 +196,37 @@ void printAdjList(Graph g, int n){
 	}
 }
 
+
 void printArray(Node* array,int size){
 	int i;
 	for(i=0;i<size;i++){
-		printf("%d %d %d %f\n",array[i].x,array[i].y,array[i].accessible,array[i].weight);
+		//printf("%d %d %d %f\n",array[i].x,array[i].y,array[i].accessible,array[i].weight);
+		printf("(%d,%d) ",array[i].x,array[i].y);
 	}
 	printf("\n");
+}
+
+void printArrayInt(int* array, int size){
+	int i;
+	for(i=0;i<size;i++){
+		printf("%d, ",array[i]);
+	}
+	printf("\n");
+}
+
+void printArrayTuple(tuple* array, int size){
+	int i;
+	for(i=0;i<size;i++){
+		printf("id:%d %.0f, ",array[i].id,array[i].value);
+	}
+	printf("\n");
+}
+
+void copyArray(Node* s, Node* d, int n){
+	int i;
+	for(i=0;i<n;i++){
+		d[i] = s[i];
+	}
 }
 
 //mapa de índices da heap
@@ -283,7 +412,7 @@ Graph* createGrid(Node* vertex, int size, int width){
 				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
 			}
 		}
-
+		
 		if(i-width >= 0){
 			if(vertex[i-width].accessible==1){
 				Node*  currentNode = createNode(vertex[i-width].x,vertex[i-width].y,vertex[i-width].id);
@@ -292,7 +421,7 @@ Graph* createGrid(Node* vertex, int size, int width){
 				queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
 			}
 		}
-		
+
 		printAdjList(*graph,i+1);
 
 		if(i%width==0){
@@ -304,12 +433,136 @@ Graph* createGrid(Node* vertex, int size, int width){
 	return graph;
 
 }
+void crossOver(Node* o1, Node* o2, int n, int p, int q){
+	int i,j;
+	Node* aux;
+	Node current;
+	Node* elem;
+	Node* queue1 = NULL;
+	Node* queue2 = NULL;
+	int present;
+
+
+	for(i=q+1;i<n-1;i++){
+		Node* copy; 
+		copy = copyNode(o1[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue1, (queue_t*)copy);
+		copy = copyNode(o2[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue2, (queue_t*)copy);
+	}
+	for(i=1;i<=q;i++){
+		Node* copy; 
+		copy = copyNode(o1[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue1, (queue_t*)copy);
+		copy = copyNode(o2[i]);
+		copy->next = NULL;
+		copy->prev = NULL;
+		queue_append((queue_t**)&queue2, (queue_t*)copy);
+	}
+
+	// for(i=p;i<=q;i++){
+	// 	current = o1[i];
+	// 	o1[i] = o2[i];
+	// 	o2[i] = current;
+	// }
+	//printf("after for\n");
+	
+	printf("\n");
+	printArray(o1,n);
+    printArray(o2,n);
+	//printf("after queue creation 1\n");
+	
+	queue_print ("Queue 1  ", (queue_t*) queue1, print_elem) ;
+	queue_print ("Queue 2  ", (queue_t*) queue2, print_elem) ;
+	//printf("after queue creation 2\n");
+	for(i=q+1;i<n-1;i++){
+		aux = queue1;
+		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o2[j].x && elem->y==o2[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o2[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	for(i=q+1;i<n-1;i++){
+		aux = queue2;
+		elem = (Node*)queue_remove ((queue_t**) &queue2, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o1[j].x && elem->y==o1[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o1[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	printf("inside crossover after q+1 for\n");
+	for(i=1;i<p;i++){
+		aux = queue1;
+		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o2[j].x && elem->y==o2[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o2[i] = *elem;
+				free(elem);
+			}
+		}
+		
+	}
+	for(i=1;i<p;i++){
+		aux = queue2;
+		elem = (Node*)queue_remove ((queue_t**) &queue2, (queue_t*)aux);
+		if(elem!=NULL){
+			present = 0;
+			for(j=p;j<=q;j++){
+				if(elem->x==o1[j].x && elem->y==o1[j].y){
+					present = 1;
+					i--;
+				}
+			}
+			if(!present){
+				o1[i] = *elem;
+				free(elem);
+			}
+		}
+	}
+	printf("\n");
+	printArray(o1,n);
+    printArray(o2,n);
+	printf("end of crossover\n");
+
+}
 
 void shuffleArray(Node* vertex, int n)
 {
     int i,j;
     Node currentNode;
-    srand48(time(NULL));
+    //srand48(time(NULL));
     for (i = n - 1; i > 0; i--) {
         j = (int) (drand48()*(i+1));
         currentNode = vertex[j];
@@ -347,54 +600,154 @@ float fitness(Node* vertex, int size){
 
 //size == número de USs
 //N == número de combinações de rotas inicial
-Graph* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut){
-	float* fitnessArray = (float*)malloc(N*sizeof(float));
+Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut){
+	tuple* totalFitness = (tuple*)malloc((N+R)*sizeof(tuple));
+	float* parentFitness = (float*)malloc(N*sizeof(float));
+	float* offspringFitness = malloc(R*sizeof(float));
 	float* probabilityArray = (float*)malloc(N*sizeof(float));
-	float totalFitness = 0;
+	float totalParentFitness = 0;
 	int i,j;
 
 	Node** selected;
 	selected = malloc(R*sizeof(Node*));//aloca uma array de ponteiros com "R" rotas
 
 	for(i=0;i<R;i++){
-		selected[i] = malloc(size*sizeof(selected[0]));
+		selected[i] = malloc(size*sizeof(Node));
 	}
 
-	//avalia a fitness da população inicial	
+	Node** best;
+	best = malloc(N*sizeof(Node*));//aloca uma array de ponteiros com "N" rotas
+
 	for(i=0;i<N;i++){
-		fitnessArray[i] = fitness(C[i],size);
-		totalFitness+=fitnessArray[i];
+		best[i] = malloc(size*sizeof(Node));
 	}
-	//avalia a probabilidade de seleção na roleta
-	for(i=0;i<N;i++){
-		probabilityArray[i] = fitnessArray[i]/totalFitness;
-	}
+	
+	printf("inside gs after allocation\n");
+
 	int gen = 0;
 	while(gen < MAX_GEN){
+		totalParentFitness = 0;
+		//avalia a fitness da população inicial	
+		for(i=0;i<N;i++){
+			parentFitness[i] = fitness(C[i],size);
+			printf("inside gs after fitness function\n");
+
+			totalParentFitness+=parentFitness[i];
+			printf("inside gs after fitness sum\n");
+
+		}
+		//avalia a probabilidade de seleção na roleta
+		for(i=0;i<N;i++){
+			probabilityArray[i] = parentFitness[i]/totalParentFitness;
+		}
+		printf("inside gs after probabilityArray\n");
 		
 		//roleta
 		for(i=0;i<R;i++){
 			j = 0;
 			float soma = probabilityArray[j];
-			srand48(time(NULL));
 			float r = drand48();
 			while(soma < r){
 				j++;
 				soma+=probabilityArray[j];	
 			}
-			selected[i] = C[j];
+			copyArray(C[j],selected[i],size);
+			printArray(selected[i],size);
+
 		}
-
-		//escolha de pares
-		for(i=0;i<R/2;i++){
-			srand48(time(NULL));
+		printf("inside gs after roulette\n");
+		//escolha de pares e crossover
+		for(i=1;i<R;i+=2){
 			float r = drand48();
-			if(r<pCross){
-
+			if(r>pCross){
+				int p = drand48()*(size-2)+1;
+				int q = drand48()*(size-2-p)+p;
+				printf("q1: %d\n",q);
+				if(q-p == 0){
+					q++;
+				}
+				if(q>=size-1){
+					q--;
+				}
+				printf("p: %d\n",p);
+				printf("q2: %d\n",q);
+				crossOver(selected[i],selected[i-1],size,p,q);	
 			}
 		}
+		printf("inside gs after crossovers\n");
+		//mutação por embaralhamento
+		for(i=0;i<R;i++){
+			float r = drand48();
+			if(r>pMut){
+				int p = drand48()*(size-2)+1;
+				int q = drand48()*(size-2-p)+p;
+				printf("q1: %d\n",q);
+				if(q-p == 0){
+					q++;
+				}
+				if(q>=size-1){
+					q--;
+				}
+				printf("p: %d\n",p);
+				printf("q2: %d\n",q);
+				printArray(selected[i],size);
+				mutate(selected[i],p,q);
+				printArray(selected[i],size);
+				printf("----\n");
+			}
+		}
+		printf("inside gs after mutation\n");
+		
+		for(i=0;i<R;i++){
+			offspringFitness[i] = fitness(selected[i],size);
+		}
+		printf("inside gs after offspringFitness\n");
+		for(i=0;i<(N+R);i++){
+			if(i<N){
+				totalFitness[i].value = parentFitness[i];
+				totalFitness[i].id = i;
+			}
+			else{
+				totalFitness[i].value = offspringFitness[i-N];
+				totalFitness[i].id = i;
+			}
+		}
+		printf("inside gs after totalFitness\n");
+		printArrayTuple(totalFitness,N+R);
+		mergeSort(totalFitness,0,N+R-1);
+		printf("inside gs after mergesort\n");
+		printArrayTuple(totalFitness,N+R);
+
+		//eugenia
+		for(i=0;i<N;i++){
+			if(totalFitness[i].id<N){
+				printf("before eugenics case 1\n");
+				copyArray(C[totalFitness[i].id],best[i],size);
+				printf("after eugenics case 1\n");
+
+			}
+			else{
+				printf("before eugenics case 2\n");
+				copyArray(selected[totalFitness[i].id-N],best[i],size);
+				printf("after eugenics case 2\n");
+			}
+		}
+		for(i=0;i<N;i++){
+			copyArray(best[i],C[i],size);
+		}
 		gen++;
+		printf("inside gs end of main loop\n");
 	}
+
+	//free(totalFitness);
+	free(parentFitness);
+	free(offspringFitness);
+	free(probabilityArray);
+	free(selected);
+	//free(best);
+	printArrayTuple(totalFitness,N+R);
+	printf("total fitness: %f\n",fitness(best[totalFitness[0].id],size));
+	return best[totalFitness[0].id];
 }
 
 //função que insere um nó em um grafo
@@ -715,10 +1068,16 @@ Node** aStar(Graph* graph, Node* points, Node start, Node end, int parte)
 }
 
 
+#define PARTE 2
 int main(){
 	clock_t start, end;
 	FILE *input;
-	input = fopen("input.txt", "r");
+	if (PARTE == 2) {
+		input = fopen("input2.txt", "r");
+	}
+	else {
+		input = fopen("input1.txt", "r");
+	}
 	int n, width;
 	fscanf(input, "%d %d", &n, &width);
 	Node* points = (Node*) malloc(n*sizeof(Node));
@@ -732,27 +1091,52 @@ int main(){
 	// 	points[i].id = i;
  //        i++;
  //    }
-	Node start_point, end_point;
-	fscanf(input, "%d %d", &start_point.x, &start_point.y);
-	fscanf(input, "%d %d", &end_point.x, &end_point.y);
+		Node start_point, end_point;
+	if (PARTE == 2)
+	{
+		fscanf(input, "%d %d", &start_point.x, &start_point.y);
+		fscanf(input, "%d %d", &end_point.x, &end_point.y);
+	}
 	printf("before input\n");
     while (EOF != fscanf(input, "%d %d %d", &points[i].x, &points[i].y, &points[i].accessible))
     {
     	points[i].next = NULL;
 		points[i].prev = NULL;
 		points[i].id = i;
-		points[i].gScore = INFINITY;
-		points[i].weight = INFINITY; //fscore
-		points[i].parentId = -1;
+		if (PARTE == 2) {
+			points[i].gScore = INFINITY;
+			points[i].weight = INFINITY; //fscore
+			points[i].parentId = -1;
+		}
         i++;
     }
 
     fclose(input);
     printArray(points,n);
+	Graph* grid;
+	Node* R;
+	if (PARTE == 2) {
+		printf("after input\n");
+    	grid = createGrid(points,n,width);
+		Node** path = aStar(grid,points,start_point,end_point, 2);
+	}
+	else {
+		Node** C;
+		C = malloc(10*sizeof(Node*));//aloca uma array de ponteiros com "R" rotas
+		srand48(time(NULL));
+		for(i=0;i<10;i++){
+			C[i] = malloc(n*sizeof(Node));
+			copyArray(points,C[i],n);
+			//printArray(C[i],n);
+			mutate(C[i],1,n-2);
+			printArray(C[i],n);
+		}
 
-    printf("after input\n");
-    Graph* grid = createGrid(points,n,width);
-	Node** path = aStar(grid,points,start_point,end_point, 2);
+		printf("after setup\n");
+		//Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut)
+		R = geneticSolve(C,n,10,10,0.2,0.1);
+		printArray(R,n);
+	}
 
     //free(points);
     //Graph graph = initializeGraphMatrix(points,n);
@@ -760,7 +1144,47 @@ int main(){
     // heapIndexMap = (int*)malloc(n*sizeof(int));
     // Graph* graph2 = initializeGraphAdjList(points,n);
 
+    if (PARTE == 1)
+	{
+		Node* o1 = malloc(8*sizeof(Node));
+		Node* o2 = malloc(8*sizeof(Node));
 
+		for(i=0;i<8;i++){
+			o1[i].visited=0;
+			o1[i].y=0;
+			o2[i].visited=0;
+			o2[i].y=0;
+			o1[i].id=i;
+			o2[i].id=i;
+		}
+
+		o1[0].x = 3;
+		o1[1].x = 4;
+		o1[2].x = 8;
+		o1[3].x = 2;
+		o1[4].x = 7;
+		o1[5].x = 1;
+		o1[6].x = 6;
+		o1[7].x = 5;
+
+		o2[0].x = 4;
+		o2[1].x = 2;
+		o2[2].x = 5;
+		o2[3].x = 1;
+		o2[4].x = 6;
+		o2[5].x = 8;
+		o2[6].x = 3;
+		o2[7].x = 7;
+
+
+		printArray(o1,8);
+		printArray(o2,8);
+
+		crossOver(o1,o2,8,3,5);
+
+		printArray(o1,8);
+		printArray(o2,8);
+	}
 
     //printGraphMatrix(graph,n);
     //printAdjList(graph2,n);
@@ -838,23 +1262,34 @@ int main(){
     fclose(output);
 
     output = fopen("tree.txt", "w");
-    for(i=0;i<n;i++)
-    {
-    	Node* aux = grid->adjList[i];
-    	if(aux!=NULL)
-    	{
-    		fprintf(output, "%d %d\n",points[i].x,points[i].y);
-    		fprintf(output, "%d %d\n\n",aux->x,aux->y);
-    		while(aux->next!=grid->adjList[i]){
-    			if(i==9){
-    				printf("9\n");
-    			}
-    			aux = aux->next;
-    			fprintf(output, "%d %d\n",points[i].x,points[i].y);
-    			fprintf(output, "%d %d\n\n",aux->x,aux->y);
-    		}
-    	}	
-    }
+	if (PARTE == 2)
+	{
+		for(i=0;i<n;i++)
+		{
+			Node* aux = grid->adjList[i];
+			if(aux!=NULL)
+			{
+				fprintf(output, "%d %d\n",points[i].x,points[i].y);
+				fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				while(aux->next!=grid->adjList[i]){
+					if(i==9){
+						printf("9\n");
+					}
+					aux = aux->next;
+					fprintf(output, "%d %d\n",points[i].x,points[i].y);
+					fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				}
+			}	
+		}
+	}
+	else {
+    	for(i=1;i<n;i++){
+    		fprintf(output, "%d %d\n",R[i-1].x,R[i-1].y);
+    		fprintf(output, "%d %d\n",R[i].x,R[i].y);
+    		fprintf(output, "\n");
+    	}
+
+	}
     fclose(output);
 	
 
