@@ -1251,7 +1251,7 @@ int main(){
     // minHeapInsert(points,n,11.0);
     // printArray(points,n+1);
 
-    // Node n1;
+    // Node n1;(Node[8])**path
     // n1.x = 10;
     // n1.y = 10;
     // n1.prev = NULL;
@@ -1298,26 +1298,34 @@ int main(){
     // }
     fclose(output);
 
-    output = fopen("tree.txt", "w");
+    output = fopen("tree2.txt", "w");
 	if (PARTE == 2)
 	{
-		for(i=0;i<n;i++)
+		// for(i=0;i<n;i++)
+		// {
+		// 	Node* aux = grid->adjList[i];
+		// 	if(aux!=NULL)
+		// 	{
+		// 		fprintf(output, "%d %d\n",points[i].x,points[i].y);
+		// 		fprintf(output, "%d %d\n\n",aux->x,aux->y);
+		// 		while(aux->next!=grid->adjList[i]){
+		// 			if(i==9){
+		// 				printf("9\n");
+		// 			}
+		// 			aux = aux->next;
+		// 			fprintf(output, "%d %d\n",points[i].x,points[i].y);
+		// 			fprintf(output, "%d %d\n\n",aux->x,aux->y);
+		// 		}
+		// 	}	
+		// }
+		for(i=path_size-1;i>0;i--)
 		{
-			Node* aux = grid->adjList[i];
-			if(aux!=NULL)
-			{
-				fprintf(output, "%d %d\n",points[i].x,points[i].y);
-				fprintf(output, "%d %d\n\n",aux->x,aux->y);
-				while(aux->next!=grid->adjList[i]){
-					if(i==9){
-						printf("9\n");
-					}
-					aux = aux->next;
-					fprintf(output, "%d %d\n",points[i].x,points[i].y);
-					fprintf(output, "%d %d\n\n",aux->x,aux->y);
-				}
-			}	
+			Node aux = path[i-1];
+			fprintf(output, "%d %d\n",path[i].x,path[i].y);
+			fprintf(output, "%d %d\n\n",aux.x,aux.y);
+			//printf("9\n");
 		}
+
 	}
 	else {
     	for(i=1;i<n;i++){
