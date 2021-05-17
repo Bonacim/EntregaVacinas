@@ -1000,20 +1000,22 @@ float d(Node current, Node neighbor, int parte)
 	return -1;
 }
 
-Node** reconstruct_path(Node* points, Node current, int size, int* parentId) {
-	Node* path = (Node*)malloc(size*sizeof(Node));
+int reconstruct_path(Node* points, Node current, int size, int* parentId, Node** path) {
+	*path = (Node*)malloc(size*sizeof(Node));
 	int actual_size = 0;
-	path[actual_size++] = current;
+	(*path)[actual_size++] = current;
 	Node next = current;
 	while (parentId[next.id] != -1)
 	{
 		next = points[parentId[next.id]];
-		path[actual_size++] = next;
+		(*path)[actual_size++] = next;
 	}
-	return path;
+	*path = (Node*)realloc(*path,actual_size*sizeof(Node));
+	free(parentId);
+	return actual_size;
 }
 
-Node** aStar(Graph* graph, Node* points, Node start, Node end, int parte)
+int aStar(Graph* graph, Node* points, Node start, Node end, Node** path, int parte)
 {
 	int openSet_size = 1;
 	float* gScore = (float*)malloc(graph->size*sizeof(float));
@@ -1035,17 +1037,33 @@ Node** aStar(Graph* graph, Node* points, Node start, Node end, int parte)
 		}
 		parentId[i] = -1;
 	}
-	heapIndexMap[0] = openSet[0].id;
-	buildMinHeap(openSet,openSet_size);
+	//heapIndexMap[0] = openSet[0].id;
+	//buildMinHeap(openSet,openSet_size);
 
 	while(openSet_size != 0)
 	{
-		Node current = heapExtractMin(openSet,openSet_size);
+		float minWeight = INFINITY;
+		int minWeightid = -1;
+		for (i = 0; i < openSet_size; i++)
+		{
+			if (openSet[i].weight < minWeight){
+				minWeight = openSet[i].weight;
+				minWeightid = i;
+			}
+		}
+		Node current = openSet[minWeightid];
+		for (i = minWeightid+1; i<openSet_size; i++)
+		{
+			openSet[i-1] = openSet[i];
+		}
 		openSet_size--;
+		openSet = (Node*)realloc(openSet,openSet_size*sizeof(Node));
 		if (current.x == end.x && current.y == end.y)
 		{
+			free(gScore);
+			free(fScore);
 			free(openSet);			
-			return reconstruct_path(points,current,graph->size, parentId);
+			return reconstruct_path(points,current,graph->size, parentId, path);
 		}
 
 		Node* neighbor = graph->adjList[current.id];
@@ -1072,16 +1090,20 @@ Node** aStar(Graph* graph, Node* points, Node start, Node end, int parte)
 					if (!neighborInSet)
 					{
 						neighbor->weight = fScore[neighbor->id];
-						minHeapInsertNode(openSet,openSet_size,*neighbor);
 						openSet_size++;
+						openSet = (Node*)realloc(openSet,openSet_size*sizeof(Node));
+						openSet[openSet_size-1] = *neighbor;
 					}
 				}
 			}
 			while (neighbor->next != graph->adjList[current.id]);
 		}
 	}
+	free(gScore);
+	free(fScore);
+	free(parentId);
 	free(openSet);
-	return NULL;
+	return -1;
 }
 
 
@@ -1127,10 +1149,13 @@ int main(){
     printArray(points,n);
 	Graph* grid;
 	Node* R;
+	Node* path;
+	int path_size;
 	if (PARTE == 2) {
 		printf("after input\n");
     	grid = createGrid(points,n,width);
-		Node** path = aStar(grid,points,start_point,end_point, 2);
+		path_size = aStar(grid,points,start_point,end_point,&path, 2);
+		printArray(path,path_size);
 	}
 	else {
 		Node** C;
