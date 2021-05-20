@@ -1154,8 +1154,13 @@ int main(){
 	if (PARTE == 2) {
 		printf("after input\n");
     	grid = createGrid(points,n,width);
-		path_size = aStar(grid,points,start_point,end_point,&path, 2);
-		printArray(path,path_size);
+		path_size = aStar(grid,points,start_point,end_point,&path, PARTE);
+		if (path_size == -1) {
+			printf("Objetivo inalcancavel");
+		}
+		else {
+			printArray(path,path_size);
+		}
 	}
 	else {
 		Node** C;
@@ -1337,6 +1342,48 @@ int main(){
 	}
     fclose(output);
 	
+	if (PARTE == 2)
+	{
+		printf("Adicionar obstaculo? S/n\n");
+		char ans = getchar();
+		while (ans == 'S' || ans == 's') {
+			free(path);
+			int atual_x, atual_y, obs_x, obs_y;
+			printf("Posicao atual: X Y\n");
+			scanf("%d %d",&atual_x, &atual_y);
+			if (atual_x >= n/width || atual_y >= width) {
+				printf("Posicao invalida\n");
+				printf("Adicionar obstaculo? S/n\n");
+				char ans = getchar();
+				continue;
+			}
+
+			printf("Posicao obstaculo: X Y\n");
+			scanf("%d %d",&obs_x, &obs_y);
+			if (obs_x >= n/width || obs_y >= width) {
+				printf("Posicao invalida\n");
+				printf("Adicionar obstaculo? S/n\n");
+				char ans = getchar();
+				continue;
+			}
+
+			start_point = points[atual_x*width + atual_y];
+			points[obs_x*width + obs_y].accessible = 0;
+
+			grid = createGrid(points,n,width);
+			path_size = aStar(grid,points,start_point,end_point,&path, PARTE);
+			if (path_size == -1) {
+				printf("Objetivo inalcancavel");
+				break;
+			}
+			else {
+				printArray(path,path_size);
+				printf("Adicionar obstaculo? S/n\n");
+				getchar();
+				ans = getchar();
+			}
+		}
+	}
 
 
 }
