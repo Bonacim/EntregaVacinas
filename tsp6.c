@@ -7,7 +7,8 @@
 #include"queue.c"
 #include<string.h>
 
-#define MAX_GEN 500
+#define MAX_GEN 50
+#define TIME_MULTIPLIER 5
 
 //Estrutura Node:
 //armazena o nó de um grafo
@@ -154,6 +155,26 @@ Node* copyNode(Node n){
 	newNode->parentId = n.parentId;
 	newNode->accessible = n.accessible;
 	return newNode;
+}
+
+void printEdgesToFile(Node* nodes, int n,const char* fileName){
+	FILE* output;
+	output = fopen(fileName, "w");
+	int i;
+	for(i=1;i<n;i++){
+		if(i==n-1){
+			fprintf(output, "%d %d %c\n",nodes[i-1].x,nodes[i-1].y,65+i-1);
+			fprintf(output, "%d %d %c\n",nodes[i].x,nodes[i].y,'A');
+			fprintf(output, "\n");
+		}
+		else{
+			fprintf(output, "%d %d %c\n",nodes[i-1].x,nodes[i-1].y,65+i-1);
+			fprintf(output, "%d %d %c\n",nodes[i].x,nodes[i].y,65+i);
+			fprintf(output, "\n");
+		}	
+	}
+
+    fclose(output);
 }
 
 float calcDist(int x1, int y1, int x2, int y2)
@@ -368,6 +389,32 @@ Graph* initializeGraphAdjList(Node* vertex, int size){
 	return graph;
 }
 
+Graph* initializeGraphTSP(Node* vertex, int size){
+	int i,j;
+	Graph* graph = (Graph*)malloc(sizeof(Graph));
+	graph->size = size;
+	graph->adjList = (Node**)malloc((size)*sizeof(Node*));
+	for(i=0;i<size;i++)
+	{
+		graph->adjList[i]=NULL;
+		for(j=0;j<size;j++)
+		{
+			if(j==i){
+				continue;
+			}
+			if(vertex[i].accessible==0 && vertex[j].accessible==0){
+				continue;
+
+			}
+			Node* currentNode = createNode(vertex[j].x,vertex[j].y,vertex[j].id);
+			currentNode->accessible = vertex[j].accessible;
+			queue_append((queue_t**)&graph->adjList[i], (queue_t*)currentNode);
+		}
+	}
+	return graph;
+
+}
+
 Graph* createGrid(Node* vertex, int size, int width){
 	int i,j;
 	
@@ -467,21 +514,6 @@ void crossOver(Node* o1, Node* o2, int n, int p, int q){
 		queue_append((queue_t**)&queue2, (queue_t*)copy);
 	}
 
-	// for(i=p;i<=q;i++){
-	// 	current = o1[i];
-	// 	o1[i] = o2[i];
-	// 	o2[i] = current;
-	// }
-	//printf("after for\n");
-	
-	printf("\n");
-	printArray(o1,n);
-    printArray(o2,n);
-	//printf("after queue creation 1\n");
-	
-	queue_print ("Queue 1  ", (queue_t*) queue1, print_elem) ;
-	queue_print ("Queue 2  ", (queue_t*) queue2, print_elem) ;
-	//printf("after queue creation 2\n");
 	for(i=q+1;i<n-1;i++){
 		aux = queue1;
 		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
@@ -516,7 +548,7 @@ void crossOver(Node* o1, Node* o2, int n, int p, int q){
 			}
 		}
 	}
-	printf("inside crossover after q+1 for\n");
+	//printf("inside crossover after q+1 for\n");
 	for(i=1;i<p;i++){
 		aux = queue1;
 		elem = (Node*)queue_remove ((queue_t**) &queue1, (queue_t*)aux);
@@ -552,10 +584,10 @@ void crossOver(Node* o1, Node* o2, int n, int p, int q){
 			}
 		}
 	}
-	printf("\n");
-	printArray(o1,n);
-    printArray(o2,n);
-	printf("end of crossover\n");
+	//printf("\n");
+	//printArray(o1,n);
+    //printArray(o2,n);
+	//printf("end of crossover\n");
 
 }
 
@@ -607,6 +639,8 @@ Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut){
 	float* offspringFitness = malloc(R*sizeof(float));
 	float* probabilityArray = (float*)malloc(N*sizeof(float));
 	float totalParentFitness = 0;
+	char fileName [20];
+	char fileExt [] = ".txt";
 	int i,j;
 
 	Node** selected;
@@ -736,19 +770,22 @@ Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut){
 		for(i=0;i<N;i++){
 			copyArray(best[i],C[i],size);
 		}
+		sprintf(fileName,"tree%d",gen);
+		strcat(fileName,fileExt);
+		printEdgesToFile(C[0],size,fileName);
 		gen++;
 		printf("inside gs end of main loop\n");
 	}
 
-	//free(totalFitness);
+	printArrayTuple(totalFitness,N+R);
+	free(totalFitness);
 	free(parentFitness);
 	free(offspringFitness);
 	free(probabilityArray);
 	free(selected);
-	//free(best);
-	printArrayTuple(totalFitness,N+R);
-	printf("total fitness: %f\n",fitness(best[totalFitness[0].id],size));
-	return best[totalFitness[0].id];
+	free(best);
+	printf("total fitness: %f\n",fitness(C[0],size));
+	return C[0];
 }
 
 //função que insere um nó em um grafo
@@ -784,34 +821,6 @@ void insertEdge(Graph* g,Node* n1,Node* n2){
 	queue_append((queue_t**)&g->adjList[n1->id], (queue_t*)newNode2);
 	queue_append((queue_t**)&g->adjList[n2->id], (queue_t*)newNode1);
 }
-
-// void initializeGraphAdjList2(Graph* graph, Node* vertex, int size){
-// 	int i,j;
-// 	printf("b\n");
-// 	graph->adjList = malloc(size*sizeof(Node*));
-// 	for(i=0;i<size;i++)
-// 	{
-// 		for(j=0;j<size;j++)
-// 		{
-// 			if(j==i)
-// 			{
-// 				continue;
-// 			}
-// 			Node currentNode;
-// 			currentNode.x = vertex[j].x;
-// 			currentNode.y = vertex[j].y;
-// 			currentNode.prev = NULL;
-// 			currentNode.next = NULL;
-// 			Node* elem = &currentNode;
-// 			printf("(%d, %d)\n",elem->x,elem->y);
-// 			printf(" i: %d, j: %d\n",i,j);
-// 			queue_append((queue_t**)&graph->adjList[i], (queue_t*)&currentNode);
-// 			printf("(%d, %d)\n",graph->adjList[i]->x,graph->adjList[i]->y);
-// 			printf("(%d, %d)\n",graph->adjList[i]->next->x,graph->adjList[i]->next->y);
-// 			printAdjList(*graph,size);
-// 		}
-// 	}
-// }
 
 void printGraphMatrix(Graph g, int n){
 	int i,j,k;
@@ -978,6 +987,7 @@ float h(Graph* graph, Node* points, Node current, Node end, int parte)
 	if (parte == 1)
 	{
 		//heuristica da parte 1
+		return sqrtf((current.x - end.x)*(current.x - end.x) + (current.y - end.y)*(current.y - end.y));
 	}
 	else if (parte == 2) {
 		//distância euclidiana
@@ -991,6 +1001,8 @@ float d(Node current, Node neighbor, int parte)
 	if (parte == 1)
 	{
 		//retorna distância da parte 1
+		float euclidian = sqrtf((current.x - neighbor.x)*(current.x - neighbor.x) + (current.y - neighbor.y)*(current.y - neighbor.y));
+		return euclidian + euclidian*drand48()*TIME_MULTIPLIER;
 	}
 	else if (parte == 2)
 	{
@@ -1035,11 +1047,11 @@ int aStar(Graph* graph, Node* points, Node start, Node end, Node** path, int par
 			gScore[i] = INFINITY;
 			fScore[i] = INFINITY;
 		}
-		parentId[i] = -1;
+		parentId[i] = -1;	
 	}
 	//heapIndexMap[0] = openSet[0].id;
 	//buildMinHeap(openSet,openSet_size);
-
+	printf("after setup\n");
 	while(openSet_size != 0)
 	{
 		float minWeight = INFINITY;
@@ -1107,35 +1119,50 @@ int aStar(Graph* graph, Node* points, Node start, Node end, Node** path, int par
 }
 
 
-#define PARTE 2
+#define PARTE 1
 int main(){
-	clock_t start, end;
+	int m, n, width;
 	FILE *input;
+	FILE *output;
+	FILE *units;
+	Node* unitsArr;
 	if (PARTE == 2) {
 		input = fopen("input2.txt", "r");
 	}
 	else {
 		input = fopen("input1.txt", "r");
+		units = fopen("units.txt", "r");
+		fscanf(units,"%d",&m);
+		unitsArr = (Node*) malloc(m*sizeof(Node));
 	}
-	int n, width;
+	if(input==NULL){
+		printf("Invalid input file.");
+		return -1;
+	}
+	
 	fscanf(input, "%d %d", &n, &width);
 	Node* points = (Node*) malloc(n*sizeof(Node));
-	int i = 0;
+	
 	printf("n=%d width=%d\n",n,width);
 
-	// while (EOF != fscanf(input, "%d %d", &points[i].x, &points[i].y))
- //    {
- //    	points[i].next = NULL;
-	// 	points[i].prev = NULL;
-	// 	points[i].id = i;
- //        i++;
- //    }
-		Node start_point, end_point;
+	Node start_point, end_point;
 	if (PARTE == 2)
 	{
 		fscanf(input, "%d %d", &start_point.x, &start_point.y);
 		fscanf(input, "%d %d", &end_point.x, &end_point.y);
 	}
+	int i = 0;
+	if(PARTE == 1){
+		while (EOF != fscanf(units, "%d %d %d", &unitsArr[i].x, &unitsArr[i].y, &unitsArr[i].accessible))
+	    {
+	    	unitsArr[i].next = NULL;
+			unitsArr[i].prev = NULL;
+			unitsArr[i].id = i;
+	        i++;
+	    }
+	    fclose(units);
+	}
+	i=0;
 	printf("before input\n");
     while (EOF != fscanf(input, "%d %d %d", &points[i].x, &points[i].y, &points[i].accessible))
     {
@@ -1144,7 +1171,6 @@ int main(){
 		points[i].id = i;
         i++;
     }
-	heapIndexMap = (int*)malloc(n*sizeof(int));
     fclose(input);
     printArray(points,n);
 	Graph* grid;
@@ -1156,186 +1182,107 @@ int main(){
     	grid = createGrid(points,n,width);
 		path_size = aStar(grid,points,start_point,end_point,&path, 2);
 		printArray(path,path_size);
+
 	}
 	else {
+		
 		Node** C;
 		C = malloc(10*sizeof(Node*));//aloca uma array de ponteiros com "R" rotas
 		srand48(time(NULL));
 		for(i=0;i<10;i++){
-			C[i] = malloc(n*sizeof(Node));
-			copyArray(points,C[i],n);
+			C[i] = malloc(m*sizeof(Node));
+			copyArray(unitsArr,C[i],m);
 			//printArray(C[i],n);
-			mutate(C[i],1,n-2);
-			printArray(C[i],n);
+			mutate(C[i],1,m-2);
+			printArray(C[i],m);
 		}
 
 		printf("after setup\n");
 		//Node* geneticSolve(Node** C, int size, int N, int R, float pCross, float pMut)
-		R = geneticSolve(C,n,10,10,0.2,0.1);
-		printArray(R,n);
-	}
+		R = geneticSolve(C,m,10,10,0.4,0.3);
+		printArray(R,m);
 
-    //free(points);
-    //Graph graph = initializeGraphMatrix(points,n);
-
-    // heapIndexMap = (int*)malloc(n*sizeof(int));
-    // Graph* graph2 = initializeGraphAdjList(points,n);
-
-    if (PARTE == 1)
-	{
-		Node* o1 = malloc(8*sizeof(Node));
-		Node* o2 = malloc(8*sizeof(Node));
-
-		for(i=0;i<8;i++){
-			o1[i].visited=0;
-			o1[i].y=0;
-			o2[i].visited=0;
-			o2[i].y=0;
-			o1[i].id=i;
-			o2[i].id=i;
+		Graph* graph = initializeGraphTSP(points,n);
+		printAdjList(*graph,n);
+		output = fopen("tree.txt","w");
+		for(i=0;i<n;i++)
+		{
+			Node* aux = graph->adjList[i];
+			if(aux!=NULL)
+			{
+				fprintf(output, "%d %d\n",points[i].x,points[i].y);
+				fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				while(aux->next!=graph->adjList[i]){
+					aux = aux->next;
+					fprintf(output, "%d %d\n",points[i].x,points[i].y);
+					fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				}
+			}	
 		}
-
-		o1[0].x = 3;
-		o1[1].x = 4;
-		o1[2].x = 8;
-		o1[3].x = 2;
-		o1[4].x = 7;
-		o1[5].x = 1;
-		o1[6].x = 6;
-		o1[7].x = 5;
-
-		o2[0].x = 4;
-		o2[1].x = 2;
-		o2[2].x = 5;
-		o2[3].x = 1;
-		o2[4].x = 6;
-		o2[5].x = 8;
-		o2[6].x = 3;
-		o2[7].x = 7;
-
-
-		printArray(o1,8);
-		printArray(o2,8);
-
-		crossOver(o1,o2,8,3,5);
-
-		printArray(o1,8);
-		printArray(o2,8);
+		fclose(output);
+		for(i=0;i<10;i++){
+			points[i].accessible = 1;
+		}
+		char fileName [20];
+		char fileExt [] = ".txt";
+		Node* path2;
+		for(i=1;i<m;i++){
+			path_size = aStar(graph,points,R[i-1],R[i],&path2,1);
+			printArray(path2,path_size);
+			printf("after aStar\n");
+			sprintf(fileName,"aStar%.2d",i);
+			strcat(fileName,fileExt);
+			output = fopen(fileName, "w");
+			for(int j=path_size-1;j>0;j--)
+			{
+				Node aux = path2[j-1];
+				fprintf(output, "%d %d\n",path2[j].x,path2[j].y);
+				fprintf(output, "%d %d\n\n",aux.x,aux.y);
+			}
+			path2 = NULL;
+			//free(path2);
+		}
 	}
 
-    //printGraphMatrix(graph,n);
-    //printAdjList(graph2,n);
-
-    //float* heap = (float*)malloc(10*sizeof(float));
-    // for(i=0;i<n;i++){
-    // 	points[i].weight=n-i;
-    // }
-    // printArray(points,n);
-    // buildMinHeap(points,n);
-    // printArray(points,n);
-
-    // i=n;
-    // while(i>=0){
-    // 	printf("current size: %d\n", i);
-    // 	printArray(points,i);
-    // 	Node min = heapExtractMin(points,i);
-    // 	printf("min: %f\n",min.weight);
-    // 	// sleep(5);
-    // 	i--;
-    // }
-
-    // heapDecreaseKey(points,5,0);
-    // printArray(points,n);
-    // heapDecreaseKey(points,1,1);
-    // printArray(points,n);
-    // minHeapInsert(points,n,11.0);
-    // printArray(points,n+1);
-
-    // Node n1;(Node[8])**path
-    // n1.x = 10;
-    // n1.y = 10;
-    // n1.prev = NULL;
-    // n1.next = NULL;
-    // Node n2;
-    // n2.x = 11;
-    // n2.y = 11;
-    // n2.prev = NULL;
-    // n2.next = NULL;
-
-    // insertNode(&graph2,&n1);
-    // insertNode(&graph2,&n2);
-    // printAdjList(graph2,graph2.size);
-    // insertEdge(&graph2,&n1,&n2);
-    //insertAdjList(&graph2,&n1,5);
-    //printAdjList(graph2,graph2.size);
-
-   //  start = clock();
-   //  Graph mst = prim(*graph2,points,n);
-   //  for(i=0;i<n;i++){
-   //  	Node* aux = graph2->adjList[i];
-   //  	while(aux!=NULL){
-			// Node* elem = (Node*)queue_remove ((queue_t**) &aux, (queue_t*)aux);
-			// //printf("removed: (%d,%d)\n",elem->x,elem->y);
-			// free(elem);
-   //  	}
-   //  }
-   //  //free(graph2);
-   //  //printAdjList(mst,n);
-   //  DFS(mst,points,n);
-   //  end = clock();
-   //  printf("%.6f %.6f\n",(float)(end-start)/CLOCKS_PER_SEC,cycleCost);
-    //queue_print ("Cycle: ", (queue_t*) cycle, print_elem);
-    //printf("Cycle cost: %f\n",cycleCost);
 
     
-
-    FILE *output = fopen("cycle.txt", "w");
-    // Node* aux = cycle;
-    // fprintf(output, "%d %d\n",aux->x,aux->y);
-    // while(aux->next!=cycle){
-    // 	aux = aux->next;
-    // 	fprintf(output, "%d %d\n",aux->x,aux->y);
-    // }
-    fclose(output);
-
-    output = fopen("tree2.txt", "w");
 	if (PARTE == 2)
-	{
-		// for(i=0;i<n;i++)
-		// {
-		// 	Node* aux = grid->adjList[i];
-		// 	if(aux!=NULL)
-		// 	{
-		// 		fprintf(output, "%d %d\n",points[i].x,points[i].y);
-		// 		fprintf(output, "%d %d\n\n",aux->x,aux->y);
-		// 		while(aux->next!=grid->adjList[i]){
-		// 			if(i==9){
-		// 				printf("9\n");
-		// 			}
-		// 			aux = aux->next;
-		// 			fprintf(output, "%d %d\n",points[i].x,points[i].y);
-		// 			fprintf(output, "%d %d\n\n",aux->x,aux->y);
-		// 		}
-		// 	}	
-		// }
+	{	output = fopen("grid.txt","w");
+		for(i=0;i<n;i++)
+		{
+			Node* aux = grid->adjList[i];
+			if(aux!=NULL)
+			{
+				fprintf(output, "%d %d\n",points[i].x,points[i].y);
+				fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				while(aux->next!=grid->adjList[i]){
+					aux = aux->next;
+					fprintf(output, "%d %d\n",points[i].x,points[i].y);
+					fprintf(output, "%d %d\n\n",aux->x,aux->y);
+				}
+			}	
+		}
+		fclose(output);
+
+		output = fopen("aStar.txt", "w");
 		for(i=path_size-1;i>0;i--)
 		{
 			Node aux = path[i-1];
 			fprintf(output, "%d %d\n",path[i].x,path[i].y);
 			fprintf(output, "%d %d\n\n",aux.x,aux.y);
-			//printf("9\n");
 		}
+		fclose(output);
 
 	}
 	else {
-    	for(i=1;i<n;i++){
-    		fprintf(output, "%d %d\n",R[i-1].x,R[i-1].y);
-    		fprintf(output, "%d %d\n",R[i].x,R[i].y);
-    		fprintf(output, "\n");
-    	}
+    	// for(i=1;i<n;i++){
+    	// 	fprintf(output, "%d %d\n",R[i-1].x,R[i-1].y);
+    	// 	fprintf(output, "%d %d\n",R[i].x,R[i].y);
+    	// 	fprintf(output, "\n");
+    	// }
 
 	}
-    fclose(output);
+    
 	
 
 
